@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Foody POS</string>
+    <string name="home">Home</string>
+    <string name="tables">Tables</string>
+    <string name="orders">Orders</string>
+    <string name="menu">Menu</string>
+    <string name="settings">Settings</string>
+    <string name="search_hint">Search for products</string>
+</resources>
