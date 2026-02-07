@@ -197,13 +197,13 @@ class HomeViewModel(
     var categoryJob: Job? = null
     fun selectCategory(index: Int) {
         _uiState.update {
-            it.copy(selectedCategoryIndex = index, )
+            it.copy(selectedCategoryIndex = index)
         }
         if (index == 0) {
             setAllProductsToUi()
         } else {
             _uiState.update {
-                it.copy(selectedProductList = mutableListOf(), isLoading = true)
+                it.copy(isLoading = true)
             }
             categoryJob?.cancel()
             val categoryId = _uiState.value.categoriesList[index].id
@@ -225,12 +225,16 @@ class HomeViewModel(
             setAllProductsToUi()
         } else {
             _uiState.update {
-                it.copy(selectedProductList = mutableListOf(), isLoading = true)
+                it.copy(isLoading = true, selectedCategoryIndex = 0)
             }
             searchJob = viewModelScope.launch {
                 val searchList = getSearchProductsByNameUseCase(searchText)
                 _uiState.update {
-                    it.copy(productsList = searchList.toMutableList(), isLoading = false)
+                    it.copy(
+                        productsList = searchList.toMutableList(),
+                        isLoading = false,
+                        selectedCategoryIndex = 0,
+                    )
                 }
             }
         }

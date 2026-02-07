@@ -21,19 +21,18 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
-import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -45,6 +44,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,23 +94,18 @@ fun HomeScreen() {
             MenuView(tables = "04", guest = "02")
 
             var searchQuery by remember { mutableStateOf("") }
-            ProductSearchBar(
-                query = searchQuery,
-                onQueryChange = { newText ->
-                    searchQuery = newText
-                    viewModel.searchProducts(newText)
+            ProductSearchBar(query = searchQuery, onQueryChange = { newText ->
+                searchQuery = newText
+                viewModel.searchProducts(newText)
 
-                },
-                onSearchExecuted = { finalQuery ->
-                }
-            )
+            }, onSearchExecuted = { finalQuery ->
+            })
 
 
             if (uiState.categoriesList.isNotEmpty()) {
                 PrimaryScrollableTabRow(
                     selectedTabIndex = uiState.selectedCategoryIndex,
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     containerColor = Color.Transparent,
                     divider = {},
                     edgePadding = 0.dp,
@@ -130,8 +125,7 @@ fun HomeScreen() {
                 ) {
                     uiState.categoriesList.forEachIndexed { index, category ->
                         Tab(
-                            selected = index == uiState.selectedCategoryIndex,
-                            onClick = {
+                            selected = index == uiState.selectedCategoryIndex, onClick = {
                                 searchQuery = ""
                                 viewModel.selectCategory(index)
                             }) {
@@ -147,16 +141,21 @@ fun HomeScreen() {
 
                 }
             }
-            Log.d("KKKKK", uiState.productsList.toString())
 
+            val gridState = rememberLazyGridState()
+
+            LaunchedEffect(uiState.productsList) {
+                gridState.scrollToItem(0)
+            }
 
             ProductsGrid(
+                gridState,
                 modifier = Modifier.fillMaxWidth(),
                 list = uiState.productsList,
                 onItemClick = { product ->
                     viewModel.addProductToCart(product)
                 },
-            )
+                )
 
         }
         if (uiState.isLoading) {
@@ -295,90 +294,19 @@ fun ProductSearchBar(
             imeAction = ImeAction.Search
         ),
         keyboardActions = KeyboardActions(
-            onSearch = { onSearchExecuted(query) }
-        )
-    )
+            onSearch = { onSearchExecuted(query) }))
 }
 
-
-@Composable
-fun CartView(modifier: Modifier, uiState: HomeUiState, viewModel: HomeViewModel) {
-
-    LazyColumn(modifier = modifier) {
-        items(uiState.selectedProductList.size, key = { it }) { item ->
-            CartItem(selectedProduct = uiState.selectedProductList[item], viewModel = viewModel)
-        }
-
-        if (uiState.total != null) {
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.LightGray)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(text = uiState.total)
-                        if (uiState.discount != null) Text(
-                            text = uiState.discount, color = Color(0xFF653F03)
-                        )
-                    }
-                    Button(onClick = {
-                        viewModel.checkoutOrder()
-                    }) {
-                        Text("Checkout")
-                    }
-                }
-            }
-        }
-    }
-
-}
-
-
-@Composable
-fun CartItem(selectedProduct: SelectedProduct, viewModel: HomeViewModel) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
-    ) {
-        AsyncImage(
-            model = selectedProduct.thumb,
-            contentDescription = selectedProduct.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(40.dp)
-        )
-
-        Text(
-            text = selectedProduct.name + " x " + selectedProduct.quantity + "\n" + "Price: " + selectedProduct.price * selectedProduct.quantity,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp)
-        )
-        Icon(
-            imageVector = Icons.Default.Delete,
-            tint = Color.Red,
-            contentDescription = "Delete",
-            modifier = Modifier
-                .size(22.dp)
-                .clickable { viewModel.removeProductFromCart(selectedProduct) })
-
-    }
-
-}
 
 @Composable
 private fun ProductsGrid(
+    gridState: LazyGridState,
     list: List<Product>,
     onItemClick: (Product) -> Unit,
     modifier: Modifier,
 ) {
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Adaptive(180.dp),
         contentPadding = WindowInsets.safeDrawing.asPaddingValues(),
         modifier = modifier,
@@ -407,13 +335,11 @@ private fun GridListItem(
             containerColor = MaterialTheme.colorScheme.background,
             disabledContainerColor = MaterialTheme.colorScheme.background,
         ),
-        modifier = modifier
-            .padding(12.dp),
+        modifier = modifier.padding(12.dp),
         onClick = onClick,
     ) {
         Column(
-            modifier
-                .clickable { onClick() }) {
+            modifier.clickable { onClick() }) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
