@@ -1,16 +1,16 @@
 package com.quranali.pos.screens.home
 
-import com.quranali.pos.data.local.entity.ProductEntity
 import com.quranali.pos.domain.model.Category
+import com.quranali.pos.domain.model.Product
 
 data class HomeUiState(
     val isLoading: Boolean = true,
     val isConnected: Boolean = false,
     val errorMessage: String? = null,
-    val productsList: MutableList<ProductEntity> = mutableListOf(),
-    val categoriesList: MutableList<Category> = mutableListOf(),
+    val productsList: List<Product> = emptyList(),
+    val categoriesList: List<Category> = emptyList(),
     val selectedCategoryIndex: Int = 0,
-    val selectedProductList: MutableList<SelectedProduct> = mutableListOf(),
+    val selectedProductList: List<SelectedProduct> = emptyList(),
     val total: String? = null,
     val discount: String? = null,
     val userName: String = "Ali Alquran",

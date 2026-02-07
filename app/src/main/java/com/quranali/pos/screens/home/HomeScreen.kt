@@ -1,5 +1,6 @@
 package com.quranali.pos.screens.home
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -62,9 +63,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.quranali.pos.data.local.entity.ProductEntity
-import com.quranali.pos.screens.component.ProgressLoader
 import com.quranali.pos.R
+import com.quranali.pos.domain.model.Product
+import com.quranali.pos.screens.component.ProgressLoader
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -131,6 +132,7 @@ fun HomeScreen() {
                         Tab(
                             selected = index == uiState.selectedCategoryIndex,
                             onClick = {
+                                searchQuery = ""
                                 viewModel.selectCategory(index)
                             }) {
                             Text(
@@ -145,6 +147,7 @@ fun HomeScreen() {
 
                 }
             }
+            Log.d("KKKKK", uiState.productsList.toString())
 
 
             ProductsGrid(
@@ -156,7 +159,6 @@ fun HomeScreen() {
             )
 
         }
-
         if (uiState.isLoading) {
             ProgressLoader(Modifier.fillMaxSize())
         }
@@ -372,8 +374,8 @@ fun CartItem(selectedProduct: SelectedProduct, viewModel: HomeViewModel) {
 
 @Composable
 private fun ProductsGrid(
-    list: List<ProductEntity>,
-    onItemClick: (ProductEntity) -> Unit,
+    list: List<Product>,
+    onItemClick: (Product) -> Unit,
     modifier: Modifier,
 ) {
     LazyVerticalGrid(
@@ -392,7 +394,7 @@ private fun ProductsGrid(
 
 @Composable
 private fun GridListItem(
-    item: ProductEntity,
+    item: Product,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
