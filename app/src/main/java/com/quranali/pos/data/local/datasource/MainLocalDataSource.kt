@@ -11,4 +11,8 @@ interface MainLocalDataSource {
 
     suspend fun saveProducts(products: List<ProductEntity>)
     fun observeProducts(): Flow<List<ProductEntity>>
+
+    suspend fun getSearchProductsByName(productName: String): List<ProductEntity>
+
+    suspend fun getProductsByCategory(categoryId: String): List<ProductEntity>
 }

@@ -1,6 +1,8 @@
 package com.quranali.pos.di
 
 
+import com.quranali.pos.domain.usecase.GetProductsByCategoryIdUseCase
+import com.quranali.pos.domain.usecase.GetSearchProductsByNameUseCase
 import com.quranali.pos.domain.usecase.ObserveAllProductsUseCase
 import com.quranali.pos.domain.usecase.ObserveCategoriesUseCase
 import com.quranali.pos.domain.usecase.RefreshAllProductsUseCase
@@ -24,6 +26,14 @@ val commonDomainModule = module {
 
     factory {
         RefreshCategoriesUseCase(get())
+    }
+
+    factory {
+        GetSearchProductsByNameUseCase(get())
+    }
+
+    factory {
+        GetProductsByCategoryIdUseCase(get())
     }
 
 }

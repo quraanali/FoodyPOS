@@ -40,9 +40,14 @@ class MainRepositoryImpl(
         return local.observeProducts()
             .map { list -> list.map { it.toDomain() } }
     }
-//    override suspend fun observeSearchProductsByName(productName: String): Flow<List<Product>> {
-//        return dao.searchProductsByName(productName)
-//            .map { list -> list.map { it.toDomain() } }
-//    }
 
+    override suspend fun getSearchProductsByName(productName: String): List<Product> {
+        return local.getSearchProductsByName(productName).map { it.toDomain() }
+
+    }
+
+    override suspend fun getProductsByCategory(categoryId: String): List<Product> {
+        return local.getProductsByCategory(categoryId)
+            .map { it.toDomain() }
+    }
 }
