@@ -69,7 +69,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.quranali.pos.R
-import com.quranali.pos.domain.model.Product
 import com.quranali.pos.screens.component.ProgressLoader
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -393,8 +392,8 @@ fun ProductSearchBar(
 @Composable
 private fun ProductsGrid(
     gridState: LazyGridState,
-    list: List<Product>,
-    onItemClick: (Product) -> Unit,
+    list: List<ProductUi>,
+    onItemClick: (ProductUi) -> Unit,
     modifier: Modifier,
 ) {
     LazyVerticalGrid(
@@ -403,7 +402,7 @@ private fun ProductsGrid(
         contentPadding = WindowInsets.safeDrawing.asPaddingValues(),
         modifier = modifier,
     ) {
-        items(list, key = { it.id }) { item ->
+        items(list, key = { it.product.id }) { item ->
             GridListItem(
                 item = item,
                 onClick = { onItemClick(item) },
@@ -414,55 +413,73 @@ private fun ProductsGrid(
 
 @Composable
 private fun GridListItem(
-    item: Product,
+    item: ProductUi,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val quantity = item.quantity ?: 0
+
     ElevatedCard(
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 4.dp,
-        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            disabledContainerColor = MaterialTheme.colorScheme.background,
-        ),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.background),
         modifier = modifier.padding(12.dp),
         onClick = onClick,
     ) {
-        Column(
-            modifier.clickable { onClick() }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(4f / 3f)
-                    .background(Color.LightGray)
-            ) {
-                AsyncImage(
-                    model = item.image,
-                    contentDescription = item.name,
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.ic_not_found),
-                    modifier = Modifier.matchParentSize(),
-                    placeholder = painterResource(R.drawable.ic_loading)
+        Box(modifier = Modifier.fillMaxWidth()) {
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .background(Color.LightGray)
+                ) {
+                    AsyncImage(
+                        model = item.product.image,
+                        contentDescription = item.product.name,
+                        contentScale = ContentScale.Crop,
+                        error = painterResource(R.drawable.ic_not_found),
+                        modifier = Modifier.matchParentSize(),
+                        placeholder = painterResource(R.drawable.ic_loading)
+                    )
+                }
+
+                Spacer(Modifier.height(2.dp))
+
+                Text(
+                    item.product.name,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2
                 )
-
-
+                Text(
+                    "${item.product.price} SAR",
+                    modifier = Modifier.padding(start = 12.dp, bottom = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
             }
 
-            Spacer(Modifier.height(2.dp))
-
-            Text(
-                item.name,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                item.price.toString(),
-                modifier = Modifier.padding(start = 12.dp, bottom = 12.dp),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            if (quantity > 0) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(26.dp),
+                    shape = CircleShape,
+                    color = Color.Red,
+                    tonalElevation = 4.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = quantity.toString(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
-
 }

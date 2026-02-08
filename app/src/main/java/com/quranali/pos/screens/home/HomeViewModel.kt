@@ -76,82 +76,62 @@ class HomeViewModel(
             }
         }
 
-        setAllProductsToUi()/*  viewModelScope.launch {
-              observeAllProductsUseCase().collectLatest { list ->
-                  val productList = mutableListOf<Product>()
-                  list.forEach { item ->
-                      productList.add(
-                          Product(
-                              id = item.id,
-                              name = item.name,
-                              description = item.description,
-                              image = item.image,
-                              price = item.price,
-                              categoryId = item.categoryId,
-                              isAvailable = item.price > 1.0
-                          )
-                      )
-                  }
-                  _uiState.update {
-                      it.copy(productsList = productList, isLoading = false)
-                  }
-              }
-          }*/
+        setAllProductsToUi()
     }
 
-    fun addProductToCart(product: Product) {
-        if (!product.isAvailable) {
-            _uiState.update {
-                it.copy(
-                    errorMessage = application.getString(R.string.outOfStock)
-                )
-            }
-            return@addProductToCart
+    fun addProductToCart(productUi: ProductUi) {
+        if (!productUi.product.isAvailable) {
+            _uiState.update { it.copy(errorMessage = application.getString(R.string.outOfStock)) }
+            return
         }
 
         _uiState.update { currentState ->
-            val existing = currentState.cartList.find { it.product.id == product.id }
-
-            val updatedList = if (existing != null) {
+            val existing = currentState.cartList.find { it.product.id == productUi.product.id }
+            val updatedCart = if (existing != null) {
                 currentState.cartList.map {
-                    if (it.product.id == product.id) it.copy(quantity = it.quantity + 1) else it
+                    if (it.product.id == productUi.product.id) it.copy(quantity = it.quantity + 1) else it
                 }
             } else {
-                currentState.cartList + CartItem(
-                    product = product, quantity = 1
-                )
+                currentState.cartList + CartItem(product = productUi.product, quantity = 1)
             }
 
-            currentState.copy(cartList = updatedList.toMutableList())
+            val updatedProducts = currentState.productsList.map { productUi ->
+                val cartItem = updatedCart.find { it.product.id == productUi.product.id }
+                productUi.copy(quantity = cartItem?.quantity)
+            }
+
+            currentState.copy(
+                cartList = updatedCart,
+                productsList = updatedProducts
+            )
         }
         calculateTotal()
     }
 
 
     private fun setAllProductsToUi() {
-        _uiState.update {
-            it.copy(productsList = mutableListOf(), isLoading = true)
-        }
-
+        _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
             observeAllProductsUseCase().collect { list ->
-                val productList = mutableListOf<Product>()
-                list.forEach { item ->
-                    productList.add(
-                        Product(
-                            id = item.id,
-                            name = item.name,
-                            description = item.description,
-                            image = item.image,
-                            price = item.price,
-                            categoryId = item.categoryId,
-                            isAvailable = item.price > 1.0
-                        )
+                val currentCart = _uiState.value.cartList
+
+                val productUiList = list.map { item ->
+                    val product = Product(
+                        id = item.id,
+                        name = item.name,
+                        description = item.description,
+                        image = item.image,
+                        price = item.price,
+                        categoryId = item.categoryId,
+                        isAvailable = item.price > 1.0
                     )
+                    val quantityInCart = currentCart.find { it.product.id == item.id }?.quantity
+                    ProductUi(product = product, quantity = quantityInCart)
                 }
+
                 _uiState.update {
-                    it.copy(productsList = productList, isLoading = false)
+                    it.copy(productsList = productUiList, isLoading = false)
                 }
             }
         }
@@ -176,9 +156,12 @@ class HomeViewModel(
     }
 
     fun checkoutOrder() {
-        _uiState.update {
-            it.copy(
-                isLoading = false, cartList = listOf(),
+        _uiState.update { currentState ->
+            val clearedProducts = currentState.productsList.map { it.copy(quantity = null) }
+            currentState.copy(
+                isLoading = false,
+                cartList = emptyList(),
+                productsList = clearedProducts,
                 total = null,
                 errorMessage = application.getString(R.string.orderPlaced)
             )
@@ -187,24 +170,36 @@ class HomeViewModel(
 
     var filterJob: Job? = null
     fun selectCategory(index: Int) {
-        _uiState.update {
-            it.copy(selectedCategoryIndex = index)
-        }
+        _uiState.update { it.copy(selectedCategoryIndex = index) }
+
         if (index == 0) {
             setAllProductsToUi()
         } else {
-            _uiState.update {
-                it.copy(isLoading = true)
-            }
+            _uiState.update { it.copy(isLoading = true) }
             filterJob?.cancel()
+
             val categoryId = _uiState.value.categoriesList[index].id
 
             filterJob = viewModelScope.launch {
                 val searchList = getProductsByCategoryIdUseCase(categoryId)
-                _uiState.update {
-                    it.copy(productsList = searchList.toMutableList(), isLoading = false)
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        productsList = searchList.mapToProductUi(currentState.cartList),
+                        isLoading = false
+                    )
                 }
             }
+        }
+    }
+
+    private fun List<Product>.mapToProductUi(cartList: List<CartItem>): List<ProductUi> {
+        return this.map { product ->
+            val quantityInCart = cartList.find { it.product.id == product.id }?.quantity
+            ProductUi(
+                product = product,
+                quantity = quantityInCart
+            )
         }
     }
 
@@ -214,14 +209,14 @@ class HomeViewModel(
         if (searchText.isEmpty()) {
             setAllProductsToUi()
         } else {
-            _uiState.update {
-                it.copy(isLoading = true, selectedCategoryIndex = 0)
-            }
+            _uiState.update { it.copy(isLoading = true, selectedCategoryIndex = 0) }
+
             filterJob = viewModelScope.launch {
                 val searchList = getSearchProductsByNameUseCase(searchText)
-                _uiState.update {
-                    it.copy(
-                        productsList = searchList.toMutableList(),
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        productsList = searchList.mapToProductUi(currentState.cartList),
                         isLoading = false,
                         selectedCategoryIndex = 0,
                     )
