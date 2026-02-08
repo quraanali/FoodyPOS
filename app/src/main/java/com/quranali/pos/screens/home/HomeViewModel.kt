@@ -3,9 +3,12 @@ package com.quranali.pos.screens.home
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.quranali.pos.R
 import com.quranali.pos.data.remote.network.NetworkMonitor
+import com.quranali.pos.domain.model.CartItem
 import com.quranali.pos.domain.model.Category
 import com.quranali.pos.domain.model.Product
+import com.quranali.pos.domain.usecase.CalculateTotalPriceUseCase
 import com.quranali.pos.domain.usecase.GetProductsByCategoryIdUseCase
 import com.quranali.pos.domain.usecase.GetSearchProductsByNameUseCase
 import com.quranali.pos.domain.usecase.ObserveAllProductsUseCase
@@ -21,14 +24,13 @@ import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val application: Application,
-//    private val createOrderUseCase: CreateOrderUseCase,
-//    private val calculateTotalAndDiscountUseCase: CalculateTotalAndDiscountUseCase,
     private val observeCategoriesUseCase: ObserveCategoriesUseCase,
     private val observeAllProductsUseCase: ObserveAllProductsUseCase,
     private val refreshCategoriesUseCase: RefreshCategoriesUseCase,
     private val refreshAllProductsUseCase: RefreshAllProductsUseCase,
     private val getSearchProductsByNameUseCase: GetSearchProductsByNameUseCase,
     private val getProductsByCategoryIdUseCase: GetProductsByCategoryIdUseCase,
+    private val calculateTotalPriceUseCase: CalculateTotalPriceUseCase
 ) : ViewModel() {
     private val networkMonitor = NetworkMonitor(application)
     private val _uiState: MutableStateFlow<HomeUiState> = MutableStateFlow(HomeUiState())
@@ -41,7 +43,6 @@ class HomeViewModel(
             )
         }
 
-        // observing intenet connectivity
         viewModelScope.launch {
             networkMonitor.isConnected.collect { isConnected ->
                 // to load data when connected to the internet
@@ -75,8 +76,7 @@ class HomeViewModel(
             }
         }
 
-        setAllProductsToUi()
-        /*  viewModelScope.launch {
+        setAllProductsToUi()/*  viewModelScope.launch {
               observeAllProductsUseCase().collectLatest { list ->
                   val productList = mutableListOf<Product>()
                   list.forEach { item ->
@@ -100,36 +100,31 @@ class HomeViewModel(
     }
 
     fun addProductToCart(product: Product) {
-        if (product.isAvailable) {
+        if (!product.isAvailable) {
             _uiState.update {
                 it.copy(
-                    errorMessage = "OPS! Out of stock"
+                    errorMessage = application.getString(R.string.outOfStock)
                 )
             }
             return@addProductToCart
         }
 
-//            _uiState.update { currentState ->
-//                val existing = currentState.selectedProductList.find { it.id == product.id }
-//
-//                val updatedList = if (existing != null) {
-//                    currentState.selectedProductList.map {
-//                        if (it.id == product.id) it.copy(quantity = it.quantity + 1) else it
-//                    }
-//                } else {
-//                    currentState.selectedProductList + SelectedProduct(
-//                        id = product.id,
-//                        name = product.name,
-//                        price = product.price,
-//                        quantity = 1,
-//                        taxable = product.taxable,
-//                        thumb = product.thumb
-//                    )
-//                }
-//
-//                currentState.copy(selectedProductList = updatedList.toMutableList())
-//            }
-//            calculateTotal()
+        _uiState.update { currentState ->
+            val existing = currentState.cartList.find { it.product.id == product.id }
+
+            val updatedList = if (existing != null) {
+                currentState.cartList.map {
+                    if (it.product.id == product.id) it.copy(quantity = it.quantity + 1) else it
+                }
+            } else {
+                currentState.cartList + CartItem(
+                    product = product, quantity = 1
+                )
+            }
+
+            currentState.copy(cartList = updatedList.toMutableList())
+        }
+        calculateTotal()
     }
 
 
@@ -162,13 +157,14 @@ class HomeViewModel(
         }
     }
 
-    fun removeProductFromCart(product: SelectedProduct) {
-    }
 
     fun calculateTotal() {
-        val state = _uiState.value
+        _uiState.update {
+            it.copy(
+                total = calculateTotalPriceUseCase(it.cartList).toString()
+            )
+        }
 
-//        val pair = calculateTotalAndDiscountUseCase(state.selectedProductList)
     }
 
     fun clearErrorMsg() {
@@ -179,22 +175,17 @@ class HomeViewModel(
         }
     }
 
-
-    override fun onCleared() {
-        super.onCleared()
-        networkMonitor.stop()
-    }
-
     fun checkoutOrder() {
         _uiState.update {
             it.copy(
-                isLoading = true
+                isLoading = false, cartList = listOf(),
+                total = null,
+                errorMessage = application.getString(R.string.orderPlaced)
             )
         }
     }
 
-
-    var categoryJob: Job? = null
+    var filterJob: Job? = null
     fun selectCategory(index: Int) {
         _uiState.update {
             it.copy(selectedCategoryIndex = index)
@@ -205,10 +196,10 @@ class HomeViewModel(
             _uiState.update {
                 it.copy(isLoading = true)
             }
-            categoryJob?.cancel()
+            filterJob?.cancel()
             val categoryId = _uiState.value.categoriesList[index].id
 
-            categoryJob = viewModelScope.launch {
+            filterJob = viewModelScope.launch {
                 val searchList = getProductsByCategoryIdUseCase(categoryId)
                 _uiState.update {
                     it.copy(productsList = searchList.toMutableList(), isLoading = false)
@@ -217,9 +208,8 @@ class HomeViewModel(
         }
     }
 
-    var searchJob: Job? = null
     fun searchProducts(searchText: String) {
-        searchJob?.cancel()
+        filterJob?.cancel()
 
         if (searchText.isEmpty()) {
             setAllProductsToUi()
@@ -227,7 +217,7 @@ class HomeViewModel(
             _uiState.update {
                 it.copy(isLoading = true, selectedCategoryIndex = 0)
             }
-            searchJob = viewModelScope.launch {
+            filterJob = viewModelScope.launch {
                 val searchList = getSearchProductsByNameUseCase(searchText)
                 _uiState.update {
                     it.copy(
@@ -238,5 +228,11 @@ class HomeViewModel(
                 }
             }
         }
+    }
+
+
+    override fun onCleared() {
+        super.onCleared()
+        networkMonitor.stop()
     }
 }

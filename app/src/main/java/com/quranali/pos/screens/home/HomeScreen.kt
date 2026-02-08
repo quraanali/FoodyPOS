@@ -1,7 +1,9 @@
 package com.quranali.pos.screens.home
 
-import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,10 +28,12 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
@@ -40,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
@@ -80,11 +85,25 @@ fun HomeScreen() {
         Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
         viewModel.clearErrorMsg()
     }
+    val isShowCart = remember { mutableStateOf(uiState.cartList.isNotEmpty()) }
+
+
 
     Box(Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
 
 
+            AnimatedVisibility(
+                visible = isShowCart.value,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+            ) {
+                ViewOrderBar(
+                    count = uiState.cartList.size,
+                    totalPrice = uiState.total ?: "",
+                    onClick = { viewModel.checkoutOrder() }
+                )
+            }
             UserView(
                 username = uiState.userName,
                 userId = uiState.userID,
@@ -98,7 +117,7 @@ fun HomeScreen() {
                 searchQuery = newText
                 viewModel.searchProducts(newText)
 
-            }, onSearchExecuted = { finalQuery ->
+            }, onSearchExecuted = { _ ->
             })
 
 
@@ -150,16 +169,88 @@ fun HomeScreen() {
 
             ProductsGrid(
                 gridState,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
                 list = uiState.productsList,
                 onItemClick = { product ->
                     viewModel.addProductToCart(product)
                 },
+            )
+
+
+            AnimatedVisibility(
+                visible = uiState.cartList.isNotEmpty(),
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+            ) {
+                ViewOrderBar(
+                    count = uiState.cartList.size,
+                    totalPrice = uiState.total ?: "",
+                    onClick = { viewModel.checkoutOrder() }
                 )
+            }
+
 
         }
+
         if (uiState.isLoading) {
             ProgressLoader(Modifier.fillMaxSize())
+        }
+    }
+}
+
+
+@Composable
+fun ViewOrderBar(count: Int, totalPrice: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth()
+            .height(64.dp)
+            .clickable { onClick() },
+        color = colorResource(R.color.primary),
+        shape = RoundedCornerShape(12.dp),
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = Color.White,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = count.toString().padStart(2, '0'),
+                        color = colorResource(R.color.primary)
+                    )
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.viewOrder),
+                color = Color.White,
+                modifier = Modifier
+                    .padding(start = 16.dp)
+                    .weight(1f),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = "SAR $totalPrice",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Default.ArrowForward,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.padding(start = 8.dp)
+            )
         }
     }
 }
@@ -294,7 +385,8 @@ fun ProductSearchBar(
             imeAction = ImeAction.Search
         ),
         keyboardActions = KeyboardActions(
-            onSearch = { onSearchExecuted(query) }))
+            onSearch = { onSearchExecuted(query) })
+    )
 }
 
 
