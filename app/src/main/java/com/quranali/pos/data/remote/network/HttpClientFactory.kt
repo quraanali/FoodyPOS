@@ -33,7 +33,7 @@ class HttpClientFactory(
             defaultRequest {
                 url("https://my.api.mockaroo.com")
                 contentType(ContentType.Application.Json)
-                header("X-API-Key", "ee8a4190")
+                header("X-API-Key", "1dbffa50")
             }
 
 //            install(Logging) {
