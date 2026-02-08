@@ -8,11 +8,16 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val isConnected: Boolean = false,
     val errorMessage: String? = null,
-    val productsList: List<Product> = emptyList(),
+    val productsList: List<ProductUi> = emptyList(),
     val categoriesList: List<Category> = emptyList(),
     val selectedCategoryIndex: Int = 0,
     val cartList: List<CartItem> = emptyList(),
     val total: String? = null,
     val userName: String = "Ali Alquran",
     val userID: String = "89891899",
+)
+
+data class ProductUi(
+    val quantity: Int? = null,
+    val product: Product
 )
