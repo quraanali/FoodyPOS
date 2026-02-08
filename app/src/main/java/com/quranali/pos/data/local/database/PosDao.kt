@@ -32,7 +32,7 @@ interface PosDao {
     @Query("SELECT * FROM products WHERE categoryId = :categoryId")
     suspend fun getProductsByCategory(categoryId: String): List<ProductEntity>
 
-//    @Query("  SELECT * FROM products  WHERE name LIKE '%' || :productName || '%'")
-//    suspend fun searchProductsByName(productName: String): Flow<List<ProductEntity>>
+    @Query("  SELECT * FROM products  WHERE name LIKE '%' || :productName || '%'")
+    suspend fun getSearchProductsByName(productName: String): List<ProductEntity>
 
 }

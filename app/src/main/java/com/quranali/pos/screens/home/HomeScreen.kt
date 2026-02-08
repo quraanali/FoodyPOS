@@ -1,6 +1,9 @@
 package com.quranali.pos.screens.home
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,19 +23,20 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
-import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -40,10 +44,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,9 +68,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.quranali.pos.data.local.entity.ProductEntity
-import com.quranali.pos.screens.component.ProgressLoader
 import com.quranali.pos.R
+import com.quranali.pos.screens.component.ProgressLoader
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -79,11 +84,25 @@ fun HomeScreen() {
         Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
         viewModel.clearErrorMsg()
     }
+    val isShowCart = remember { mutableStateOf(uiState.cartList.isNotEmpty()) }
+
+
 
     Box(Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
 
 
+            AnimatedVisibility(
+                visible = isShowCart.value,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+            ) {
+                ViewOrderBar(
+                    count = uiState.cartList.size,
+                    totalPrice = uiState.total ?: "",
+                    onClick = { viewModel.checkoutOrder() }
+                )
+            }
             UserView(
                 username = uiState.userName,
                 userId = uiState.userID,
@@ -93,23 +112,18 @@ fun HomeScreen() {
             MenuView(tables = "04", guest = "02")
 
             var searchQuery by remember { mutableStateOf("") }
-            ProductSearchBar(
-                query = searchQuery,
-                onQueryChange = { newText ->
-                    searchQuery = newText
-                    viewModel.searchProducts(newText)
+            ProductSearchBar(query = searchQuery, onQueryChange = { newText ->
+                searchQuery = newText
+                viewModel.searchProducts(newText)
 
-                },
-                onSearchExecuted = { finalQuery ->
-                }
-            )
+            }, onSearchExecuted = { _ ->
+            })
 
 
             if (uiState.categoriesList.isNotEmpty()) {
                 PrimaryScrollableTabRow(
                     selectedTabIndex = uiState.selectedCategoryIndex,
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     containerColor = Color.Transparent,
                     divider = {},
                     edgePadding = 0.dp,
@@ -129,8 +143,8 @@ fun HomeScreen() {
                 ) {
                     uiState.categoriesList.forEachIndexed { index, category ->
                         Tab(
-                            selected = index == uiState.selectedCategoryIndex,
-                            onClick = {
+                            selected = index == uiState.selectedCategoryIndex, onClick = {
+                                searchQuery = ""
                                 viewModel.selectCategory(index)
                             }) {
                             Text(
@@ -146,19 +160,96 @@ fun HomeScreen() {
                 }
             }
 
+            val gridState = rememberLazyGridState()
+
+            LaunchedEffect(uiState.productsList) {
+                gridState.scrollToItem(0)
+            }
 
             ProductsGrid(
-                modifier = Modifier.fillMaxWidth(),
+                gridState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
                 list = uiState.productsList,
                 onItemClick = { product ->
                     viewModel.addProductToCart(product)
                 },
             )
 
+
+            AnimatedVisibility(
+                visible = uiState.cartList.isNotEmpty(),
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+            ) {
+                ViewOrderBar(
+                    count = uiState.cartList.size,
+                    totalPrice = uiState.total ?: "",
+                    onClick = { viewModel.checkoutOrder() }
+                )
+            }
+
+
         }
 
         if (uiState.isLoading) {
             ProgressLoader(Modifier.fillMaxSize())
+        }
+    }
+}
+
+
+@Composable
+fun ViewOrderBar(count: Int, totalPrice: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth()
+            .height(64.dp)
+            .clickable { onClick() },
+        color = colorResource(R.color.primary),
+        shape = RoundedCornerShape(12.dp),
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = Color.White,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = count.toString().padStart(2, '0'),
+                        color = colorResource(R.color.primary)
+                    )
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.viewOrder),
+                color = Color.White,
+                modifier = Modifier
+                    .padding(start = 16.dp)
+                    .weight(1f),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = "SAR $totalPrice",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Default.ArrowForward,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.padding(start = 8.dp)
+            )
         }
     }
 }
@@ -293,95 +384,25 @@ fun ProductSearchBar(
             imeAction = ImeAction.Search
         ),
         keyboardActions = KeyboardActions(
-            onSearch = { onSearchExecuted(query) }
-        )
+            onSearch = { onSearchExecuted(query) })
     )
 }
 
 
 @Composable
-fun CartView(modifier: Modifier, uiState: HomeUiState, viewModel: HomeViewModel) {
-
-    LazyColumn(modifier = modifier) {
-        items(uiState.selectedProductList.size, key = { it }) { item ->
-            CartItem(selectedProduct = uiState.selectedProductList[item], viewModel = viewModel)
-        }
-
-        if (uiState.total != null) {
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.LightGray)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(text = uiState.total)
-                        if (uiState.discount != null) Text(
-                            text = uiState.discount, color = Color(0xFF653F03)
-                        )
-                    }
-                    Button(onClick = {
-                        viewModel.checkoutOrder()
-                    }) {
-                        Text("Checkout")
-                    }
-                }
-            }
-        }
-    }
-
-}
-
-
-@Composable
-fun CartItem(selectedProduct: SelectedProduct, viewModel: HomeViewModel) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
-    ) {
-        AsyncImage(
-            model = selectedProduct.thumb,
-            contentDescription = selectedProduct.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(40.dp)
-        )
-
-        Text(
-            text = selectedProduct.name + " x " + selectedProduct.quantity + "\n" + "Price: " + selectedProduct.price * selectedProduct.quantity,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp)
-        )
-        Icon(
-            imageVector = Icons.Default.Delete,
-            tint = Color.Red,
-            contentDescription = "Delete",
-            modifier = Modifier
-                .size(22.dp)
-                .clickable { viewModel.removeProductFromCart(selectedProduct) })
-
-    }
-
-}
-
-@Composable
 private fun ProductsGrid(
-    list: List<ProductEntity>,
-    onItemClick: (ProductEntity) -> Unit,
+    gridState: LazyGridState,
+    list: List<ProductUi>,
+    onItemClick: (ProductUi) -> Unit,
     modifier: Modifier,
 ) {
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Adaptive(180.dp),
         contentPadding = WindowInsets.safeDrawing.asPaddingValues(),
         modifier = modifier,
     ) {
-        items(list, key = { it.id }) { item ->
+        items(list, key = { it.product.id }) { item ->
             GridListItem(
                 item = item,
                 onClick = { onItemClick(item) },
@@ -392,57 +413,73 @@ private fun ProductsGrid(
 
 @Composable
 private fun GridListItem(
-    item: ProductEntity,
+    item: ProductUi,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val quantity = item.quantity ?: 0
+
     ElevatedCard(
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 4.dp,
-        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            disabledContainerColor = MaterialTheme.colorScheme.background,
-        ),
-        modifier = modifier
-            .padding(12.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = modifier.padding(12.dp),
         onClick = onClick,
     ) {
-        Column(
-            modifier
-                .clickable { onClick() }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(4f / 3f)
-                    .background(Color.LightGray)
-            ) {
-                AsyncImage(
-                    model = item.image,
-                    contentDescription = item.name,
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.ic_not_found),
-                    modifier = Modifier.matchParentSize(),
-                    placeholder = painterResource(R.drawable.ic_loading)
+        Box(modifier = Modifier.fillMaxWidth()) {
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .background(Color.LightGray)
+                ) {
+                    AsyncImage(
+                        model = item.product.image,
+                        contentDescription = item.product.name,
+                        contentScale = ContentScale.Crop,
+                        error = painterResource(R.drawable.ic_not_found),
+                        modifier = Modifier.matchParentSize(),
+                        placeholder = painterResource(R.drawable.ic_loading)
+                    )
+                }
+
+                Spacer(Modifier.height(2.dp))
+
+                Text(
+                    item.product.name,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2
                 )
-
-
+                Text(
+                    "${item.product.price} SAR",
+                    modifier = Modifier.padding(start = 12.dp, bottom = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
             }
 
-            Spacer(Modifier.height(2.dp))
-
-            Text(
-                item.name,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                item.price.toString(),
-                modifier = Modifier.padding(start = 12.dp, bottom = 12.dp),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            if (quantity > 0) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(26.dp),
+                    shape = CircleShape,
+                    color = Color.Red,
+                    tonalElevation = 4.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = quantity.toString(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
-
 }

@@ -11,5 +11,6 @@ interface MainRepository {
     suspend fun syncProducts()
     fun observeProducts(): Flow<List<Product>>
 
-//    suspend fun observeSearchProductsByName(productName: String): Flow<List<Product>>
+    suspend fun getSearchProductsByName(productName: String): List<Product>
+    suspend fun getProductsByCategory(categoryId: String): List<Product>
 }

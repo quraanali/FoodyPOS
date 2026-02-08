@@ -24,4 +24,12 @@ class MainLocalDataSourceImpl(
     override fun observeProducts(): Flow<List<ProductEntity>> {
         return dao.observeProducts()
     }
+
+    override suspend fun getSearchProductsByName(productName: String): List<ProductEntity> {
+        return dao.getSearchProductsByName(productName)
+    }
+
+    override suspend fun getProductsByCategory(categoryId: String): List<ProductEntity> {
+        return dao.getProductsByCategory(categoryId)
+    }
 }
