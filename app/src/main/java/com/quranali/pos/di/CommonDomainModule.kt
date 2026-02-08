@@ -1,6 +1,7 @@
 package com.quranali.pos.di
 
 
+import com.quranali.pos.domain.usecase.CalculateTotalPriceUseCase
 import com.quranali.pos.domain.usecase.GetProductsByCategoryIdUseCase
 import com.quranali.pos.domain.usecase.GetSearchProductsByNameUseCase
 import com.quranali.pos.domain.usecase.ObserveAllProductsUseCase
@@ -34,6 +35,10 @@ val commonDomainModule = module {
 
     factory {
         GetProductsByCategoryIdUseCase(get())
+    }
+
+    factory {
+        CalculateTotalPriceUseCase()
     }
 
 }
